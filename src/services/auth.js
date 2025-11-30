@@ -1,13 +1,23 @@
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { app, db } from '../firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
+  signOut,
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 export const registerUser = async (name, email, password, role, image) => {
   try {
-    const auth = getAuth(app);
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
-    await setDoc(doc(db, 'users', user.uid), {
+    await setDoc(doc(db, "users", user.uid), {
       name,
       email,
       role,
@@ -22,34 +32,42 @@ export const registerUser = async (name, email, password, role, image) => {
 
 export const loginUser = async (email, password) => {
   try {
-    const auth = getAuth(app);
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const userDoc = await getDoc(doc(db, "users", user.uid));
     if (!userDoc.exists()) {
-      return { success: false, message: 'User data not found in Firestore' };
+      return { success: false, message: "User data not found in Firestore" };
     }
     const data = userDoc.data();
     const appUser = {
       uid: user.uid,
-      name: data.name || '',
-      email: data.email || '',
-      role: data.role || 'user',
-      image: data.image || '',
+      name: data.name || "",
+      email: data.email || "",
+      role: data.role || "user",
+      image: data.image || "",
       blocked: data.blocked || false,
     };
     if (appUser.blocked) {
-      return { success: false, message: 'This user is blocked' };
+      return { success: false, message: "This user is blocked" };
     }
     return { success: true, user: appUser };
   } catch (error) {
-    const code = error && error.code ? String(error.code) : '';
-    let message = 'Login failed';
-    if (code === 'auth/user-not-found') message = 'User not found';
-    else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') message = 'Invalid email or password';
-    else if (code === 'auth/invalid-email') message = 'Invalid email';
-    else if (code === 'auth/missing-password') message = 'Password is required';
-    else if (code === 'auth/too-many-requests') message = 'Too many attempts. Try again later';
+    const code = error && error.code ? String(error.code) : "";
+    let message = "Login failed";
+    if (code === "auth/user-not-found") message = "User not found";
+    else if (
+      code === "auth/wrong-password" ||
+      code === "auth/invalid-credential"
+    )
+      message = "Invalid email or password";
+    else if (code === "auth/invalid-email") message = "Invalid email";
+    else if (code === "auth/missing-password") message = "Password is required";
+    else if (code === "auth/too-many-requests")
+      message = "Too many attempts. Try again later";
     else if (error && error.message) message = error.message;
     return { success: false, message };
   }
@@ -57,7 +75,6 @@ export const loginUser = async (email, password) => {
 
 export const sendResetEmail = async (email) => {
   try {
-    const auth = getAuth(app);
     await sendPasswordResetEmail(auth, email);
     return true;
   } catch (error) {
@@ -66,18 +83,15 @@ export const sendResetEmail = async (email) => {
 };
 
 export const verifyResetCode = async (oobCode) => {
-  const auth = getAuth(app);
   return await verifyPasswordResetCode(auth, oobCode);
 };
 
 export const confirmNewPassword = async (oobCode, newPassword) => {
-  const auth = getAuth(app);
   await confirmPasswordReset(auth, oobCode, newPassword);
   return true;
 };
 
 export const logoutUser = async () => {
-  const auth = getAuth(app);
   try {
     await signOut(auth);
     return true;
