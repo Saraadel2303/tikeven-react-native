@@ -1,77 +1,158 @@
-import React from "react";
-import { View, Text, Image, ScrollView, StyleSheet } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  getEnrichedUserEvents,
+  getEventStatus,
+  formatEventDate,
+} from "../../services/events";
 
 export default function Events() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      const enrichedEvents = await getEnrichedUserEvents();
+      setEvents(enrichedEvents);
+    } catch (error) {
+      console.error("Error loading events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const enrichedEvents = await getEnrichedUserEvents();
+      setEvents(enrichedEvents);
+    } catch (error) {
+      console.error("Error refreshing events:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const upcomingCount = events.filter(
+    (e) => getEventStatus(e) !== "Past"
+  ).length;
+
   return (
     <View style={styles.container}>
-      
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Events</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          <Text style={styles.topBarTitle}>Upcoming (3)</Text>
-
-          <View style={styles.sortContainer}>
-            <Text style={styles.sortText}>Sort by</Text>
-          </View>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3662de" />
         </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#3662de"
+            />
+          }
+        >
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <Text style={styles.topBarTitle}>Upcoming ({upcomingCount})</Text>
 
-        {/* Event Cards */}
-        <EventCard
-          status="Live Now"
-          statusColor="#22c55e"
-          title="Tech Conference 2024"
-          date="Oct 26, 2024"
-          image="https://lh3.googleusercontent.com/aida-public/AB6AXuBZWDZkGJuTI9RW3vwI5uX19ZCgB3HKxAluXhqux1KerZoUisVliq2kZNTAdwvySmbwjO6SIwbF4600g3rPlaEbTtuus2sFyChu2w1wEp54K6GPOmDp49V-YxhBjXKJ45J3A0EaXw6UGBrvwt8laVqiWCzClbTQil1juMz_j1WjR5YD4-eMGeRE-LLVcC5yeAIRXKg9K3Kb90Y9mNDt0lE_StHNuBuEMZDLnDsEWpCQSftgFJJEx2oqPLaCM1gwU1E_LM79SFh8taw"
-          attendees="+497 more"
-          checked="157 / 500"
-        />
+            <TouchableOpacity
+              style={styles.sortContainer}
+              onPress={handleRefresh}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#3662de" />
+              ) : (
+                <Ionicons name="refresh" size={20} color="#3662de" />
+              )}
+            </TouchableOpacity>
+          </View>
 
-        <EventCard
-          title="Design Summit 2024"
-          date="Nov 15, 2024"
-          image="https://lh3.googleusercontent.com/aida-public/AB6AXuB-OtPLHkN1q_kxe7zOdE2yXvDZhfno6wmGL-4XlPUkLwmqkrdRrZRh852DC37mJmPyIzvZL8pxMquHfqYKbkbiM5HFGnC6OWmbWhLaLGApU4smYEHsn3-tMSMQxdrrkzokhfYoouUrINtvieEPIyC-vpc9KThV8OCUyYASPEY-Fz2hso1EHhXMgqhmZdam--0N4N4vPZmF8gROGHfdKWiM2q11PiODwzCqegqzNC7P-wSAaYMG1mvihk7BR04aFjl2r24n-dAn8YKeM"
-          attendees="+250 more"
-          checked="0 / 250"
-        />
-
-        <EventCard
-          title="Marketing Week"
-          date="Dec 5, 2024"
-          image="https://lh3.googleusercontent.com/aida-public/AB6AXuBFqLc4rZo3_zpnEodHB3vsKyufb0hiksGyWYI3kx4zbmb9DkfxoXXRwTkuTaX3iUf_m6G--Uv7RdqJkTyyNq5vwKnmTLWDoRwFHo3Ktui30Wg9UTFGBMzsqGRv8wrNqqS6xmsh0o7qMVuWzbmcdQRMTRciS6pOTFUAjv5bDhxYFyWJ_ht6Q87rfC_6wPLknZA3ODpkUcjemVxJ9nYwUijWiJ9dJgdFm2HhnZ70prJV_sDlsZlXdpElAcUkRGM7q2v-9d6sodftNuI"
-          attendees="+800 more"
-          checked="0 / 800"
-        />
-
-      </ScrollView>
+          {/* Event Cards */}
+          {events.length > 0 ? (
+            events.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                status={getEventStatus(event)}
+                title={event.title}
+                date={formatEventDate(event.startDate || event.date)}
+                image={event.images[0]}
+                checked={`${event.ticketStats?.checkedIn || 0} / ${
+                  event.ticketStats?.total || 0
+                }`}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No events found</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 /* ------------------ COMPONENT ------------------- */
 
-function EventCard({ status, statusColor, title, date, image, attendees, checked }) {
+function EventCard({ status, title, date, image, attendees, checked }) {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Live Now":
+        return "#22c55e";
+      case "Upcoming":
+        return "#f59e0b";
+      case "Completed":
+        return "#6b7280";
+      default:
+        return "#8698f0";
+    }
+  };
+
   return (
     <View style={styles.card}>
-
       {/* Top Row */}
       <View style={styles.cardTopRow}>
-        
         <View style={styles.cardLeft}>
           <Image
-            source={{ uri: image }}
+            source={{ uri: image || "https://via.placeholder.com/56" }}
             style={styles.cardImage}
           />
 
           <View style={{ flex: 1 }}>
             {status && (
               <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: getStatusColor(status) },
+                  ]}
+                />
                 <Text style={styles.statusText}>{status}</Text>
               </View>
             )}
@@ -80,7 +161,6 @@ function EventCard({ status, statusColor, title, date, image, attendees, checked
             <Text style={styles.cardDate}>{date}</Text>
           </View>
         </View>
-
       </View>
 
       {/* Bottom Row */}
@@ -92,7 +172,6 @@ function EventCard({ status, statusColor, title, date, image, attendees, checked
           <Text style={styles.checkedLabel}>Checked-in</Text>
         </View>
       </View>
-
     </View>
   );
 }
@@ -117,9 +196,27 @@ const styles = StyleSheet.create({
     color: "#0a1944",
   },
 
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   scroll: {
     padding: 16,
     paddingBottom: 40,
+  },
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 80,
+  },
+
+  emptyText: {
+    fontSize: 16,
+    color: "#8698f0",
   },
 
   topBar: {
@@ -138,6 +235,10 @@ const styles = StyleSheet.create({
   sortContainer: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#f0f4ff",
   },
 
   sortText: {

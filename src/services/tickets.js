@@ -100,7 +100,7 @@ export const updateTicketCheckedIn = async (ticketId, checkedIn) => {
     const ticketRef = doc(db, "tickets", ticketId);
     await updateDoc(ticketRef, {
       checkedIn: checkedIn,
-      checkedInAt: checkedIn ? new Date() : null,
+      checkedInAt: checkedIn ? new Date().toString() : null,
     });
     return true;
   } catch (error) {

@@ -53,7 +53,6 @@ export default function QRScanner() {
 
     // Debounce: ignore if last scan < 2s ago or ticket already scanned recently
 
-    console.log("Scanned data:", isProcessing);
     if (now - lastScanTime < 2000 || isProcessing) return;
 
     setIsProcessing(true);
